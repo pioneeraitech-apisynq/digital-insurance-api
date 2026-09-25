@@ -8,7 +8,7 @@
     "start:dev": "nest start --watch"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.72",
+    "@ai-sdk/gateway": "^4.0.89",
     "@nestjs/common": "^10.0.0",
     "@nestjs/core": "^10.0.0",
     "@nestjs/platform-express": "^10.0.0",
@@ -26,6 +26,6 @@
     "typescript": "^5.4.0"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=22"
   }
 }

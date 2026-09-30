@@ -32,7 +32,10 @@ export interface ReplyDraft {
   body: string;
 }
 
-export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
+export async function draftReply(
+  input: ReplyDraftInput,
+  abortSignal?: AbortSignal,
+): Promise<ReplyDraft> {
   const { text } = await generateText({
     model: openai(REPLY_DRAFT_MODEL),
     system: REPLY_DRAFT_SYSTEM_PROMPT,
@@ -40,6 +43,7 @@ export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
     // Support replies should read consistently between agents.
     temperature: 0.3,
     maxOutputTokens: 500,
+    abortSignal,
   });
 
   const body = text.trim();

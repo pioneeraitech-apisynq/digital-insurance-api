@@ -17,14 +17,49 @@ import {
  * default, so the same build can be pointed at the APISynQ gateway (which
  * records the call and applies the data-class policy) instead of talking to
  * api.openai.com directly.
+ *
+ * Security: OPENAI_BASE_URL is validated against an explicit allow-list of
+ * trusted origins at module load time. This prevents an attacker who can
+ * influence the runtime environment from redirecting requests to an arbitrary
+ * host (DNS rebinding / SSRF). Add legitimate gateway origins to
+ * ALLOWED_BASE_URL_ORIGINS below when provisioning new environments.
  */
+
+/** Trusted origins that OPENAI_BASE_URL may point at. */
+const ALLOWED_BASE_URL_ORIGINS = new Set([
+  'https://api.openai.com',
+  'https://gateway.apisync.io',
+]);
+
+function validateBaseURL(raw: string | undefined): string | undefined {
+  if (raw === undefined) {
+    return undefined;
+  }
+  let origin: string;
+  try {
+    origin = new URL(raw).origin;
+  } catch {
+    throw new Error(
+      `OPENAI_BASE_URL is not a valid URL: "${raw}". ` +
+        'Set it to a trusted gateway origin.',
+    );
+  }
+  if (!ALLOWED_BASE_URL_ORIGINS.has(origin)) {
+    throw new Error(
+      `OPENAI_BASE_URL origin "${origin}" is not in the allow-list. ` +
+        'Add it to ALLOWED_BASE_URL_ORIGINS in reply-draft.agent.ts only ' +
+        'after confirming it is a trusted APISynQ gateway endpoint.',
+    );
+  }
+  return raw;
+}
 
 /** The model this helper runs. */
 export const REPLY_DRAFT_MODEL = 'gpt-4o-mini';
 
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL,
+  baseURL: validateBaseURL(process.env.OPENAI_BASE_URL),
 });
 
 export interface ReplyDraft {

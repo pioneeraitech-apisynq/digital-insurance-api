@@ -1,4 +1,4 @@
-import { createOpenAI } from '@ai-sdk/openai';
+import { openai } from 'ai/providers';
 import { generateText } from 'ai';
 import {
   REPLY_DRAFT_SYSTEM_PROMPT,
@@ -21,11 +21,6 @@ import {
 
 /** The model this helper runs. */
 export const REPLY_DRAFT_MODEL = 'gpt-4o-mini';
-
-const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL,
-});
 
 export interface ReplyDraft {
   model: string;

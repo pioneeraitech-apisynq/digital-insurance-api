@@ -64,21 +64,28 @@ export class CustomersService {
   /**
    * Draft a reply to a message the customer sent. The draft goes to a support
    * agent, who edits and sends it; nothing here reaches the customer directly.
+   *
+   * Pass `signal` from the HTTP request so the upstream AI call is cancelled
+   * if the client disconnects before the draft is complete.
    */
   async draftMessageReply(
     customerId: string,
     dto: DraftReplyDto,
+    signal?: AbortSignal,
   ): Promise<ReplyDraft> {
     const customer = this.findOne(customerId);
     const claims = await this.findClaims(customerId);
 
-    return draftReply({
-      customerName: customer.name,
-      message: dto.message,
-      policyNumbers: customer.policyNumbers,
-      openClaimCount: claims.filter((claim) => claim.status !== 'closed')
-        .length,
-      topic: dto.topic,
-    });
+    return draftReply(
+      {
+        customerName: customer.name,
+        message: dto.message,
+        policyNumbers: customer.policyNumbers,
+        openClaimCount: claims.filter((claim) => claim.status !== 'closed')
+          .length,
+        topic: dto.topic,
+      },
+      signal,
+    );
   }
 }

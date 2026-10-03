@@ -1,4 +1,4 @@
-import { createOpenAI } from '@ai-sdk/openai';
+import { createGateway } from '@ai-sdk/gateway';
 import { generateText } from 'ai';
 import {
   REPLY_DRAFT_SYSTEM_PROMPT,
@@ -9,37 +9,34 @@ import {
 /**
  * Reply draft helper.
  *
- * Runs OpenAI gpt-4o-mini through the Vercel AI SDK. Support agents get a
- * first draft of a reply to a customer message; a human always edits and sends
- * it, so nothing here is customer-facing on its own.
- *
- * The base URL is read from OPENAI_BASE_URL rather than left at the SDK
- * default, so the same build can be pointed at the APISynQ gateway (which
- * records the call and applies the data-class policy) instead of talking to
- * api.openai.com directly.
+ * Runs gpt-4o-mini through the Vercel AI Gateway, which records the call and
+ * applies the data-class policy defined in the APISynQ gateway configuration.
+ * Support agents get a first draft of a reply to a customer message; a human
+ * always edits and sends it, so nothing here is customer-facing on its own.
  */
 
 /** The model this helper runs. */
 export const REPLY_DRAFT_MODEL = 'gpt-4o-mini';
 
-const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL,
-});
+const gateway = createGateway();
 
 export interface ReplyDraft {
   model: string;
   body: string;
 }
 
-export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
+export async function draftReply(
+  input: ReplyDraftInput,
+  signal?: AbortSignal,
+): Promise<ReplyDraft> {
   const { text } = await generateText({
-    model: openai(REPLY_DRAFT_MODEL),
+    model: gateway(REPLY_DRAFT_MODEL),
     system: REPLY_DRAFT_SYSTEM_PROMPT,
     prompt: buildReplyDraftPrompt(input),
     // Support replies should read consistently between agents.
     temperature: 0.3,
     maxOutputTokens: 500,
+    abortSignal: signal,
   });
 
   const body = text.trim();

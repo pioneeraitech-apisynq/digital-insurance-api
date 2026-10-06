@@ -1,5 +1,5 @@
 import { createOpenAI } from '@ai-sdk/openai';
-import { generateText } from 'ai';
+import { generateText, AISDKError } from 'ai';
 import {
   REPLY_DRAFT_SYSTEM_PROMPT,
   ReplyDraftInput,
@@ -33,14 +33,23 @@ export interface ReplyDraft {
 }
 
 export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
-  const { text } = await generateText({
-    model: openai(REPLY_DRAFT_MODEL),
-    system: REPLY_DRAFT_SYSTEM_PROMPT,
-    prompt: buildReplyDraftPrompt(input),
-    // Support replies should read consistently between agents.
-    temperature: 0.3,
-    maxOutputTokens: 500,
-  });
+  let text: string;
+
+  try {
+    ({ text } = await generateText({
+      model: openai(REPLY_DRAFT_MODEL),
+      system: REPLY_DRAFT_SYSTEM_PROMPT,
+      prompt: buildReplyDraftPrompt(input),
+      // Support replies should read consistently between agents.
+      temperature: 0.3,
+      maxOutputTokens: 500,
+    }));
+  } catch (err) {
+    if (AISDKError.isInstance(err)) {
+      throw err;
+    }
+    throw err;
+  }
 
   const body = text.trim();
   if (!body) {

@@ -32,15 +32,30 @@ export interface ReplyDraft {
   body: string;
 }
 
-export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
-  const { text } = await generateText({
-    model: openai(REPLY_DRAFT_MODEL),
-    system: REPLY_DRAFT_SYSTEM_PROMPT,
-    prompt: buildReplyDraftPrompt(input),
-    // Support replies should read consistently between agents.
-    temperature: 0.3,
-    maxOutputTokens: 500,
-  });
+export async function draftReply(
+  input: ReplyDraftInput,
+  abortSignal?: AbortSignal,
+): Promise<ReplyDraft> {
+  let text: string;
+
+  try {
+    ({ text } = await generateText({
+      model: openai(REPLY_DRAFT_MODEL),
+      system: REPLY_DRAFT_SYSTEM_PROMPT,
+      prompt: buildReplyDraftPrompt(input),
+      // Support replies should read consistently between agents.
+      temperature: 0.3,
+      maxOutputTokens: 500,
+      abortSignal,
+    }));
+  } catch (err) {
+    // Re-throw AbortErrors as-is so the caller (and NestJS) can handle the
+    // client disconnect cleanly without it becoming an unhandled rejection.
+    if (err instanceof Error && err.name === 'AbortError') {
+      throw err;
+    }
+    throw err;
+  }
 
   const body = text.trim();
   if (!body) {

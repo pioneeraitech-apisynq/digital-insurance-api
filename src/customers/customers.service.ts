@@ -68,17 +68,21 @@ export class CustomersService {
   async draftMessageReply(
     customerId: string,
     dto: DraftReplyDto,
+    abortSignal?: AbortSignal,
   ): Promise<ReplyDraft> {
     const customer = this.findOne(customerId);
     const claims = await this.findClaims(customerId);
 
-    return draftReply({
-      customerName: customer.name,
-      message: dto.message,
-      policyNumbers: customer.policyNumbers,
-      openClaimCount: claims.filter((claim) => claim.status !== 'closed')
-        .length,
-      topic: dto.topic,
-    });
+    return draftReply(
+      {
+        customerName: customer.name,
+        message: dto.message,
+        policyNumbers: customer.policyNumbers,
+        openClaimCount: claims.filter((claim) => claim.status !== 'closed')
+          .length,
+        topic: dto.topic,
+      },
+      { abortSignal },
+    );
   }
 }

@@ -32,15 +32,29 @@ export interface ReplyDraft {
   body: string;
 }
 
-export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
-  const { text } = await generateText({
-    model: openai(REPLY_DRAFT_MODEL),
-    system: REPLY_DRAFT_SYSTEM_PROMPT,
-    prompt: buildReplyDraftPrompt(input),
-    // Support replies should read consistently between agents.
-    temperature: 0.3,
-    maxOutputTokens: 500,
-  });
+export async function draftReply(
+  input: ReplyDraftInput,
+  abortSignal?: AbortSignal,
+): Promise<ReplyDraft | null> {
+  let text: string;
+  try {
+    ({ text } = await generateText({
+      model: openai(REPLY_DRAFT_MODEL),
+      system: REPLY_DRAFT_SYSTEM_PROMPT,
+      prompt: buildReplyDraftPrompt(input),
+      // Support replies should read consistently between agents.
+      temperature: 0.3,
+      maxOutputTokens: 500,
+      abortSignal,
+    }));
+  } catch (err) {
+    // As of ai@7.0.130, aborting the request rejects the promise with an
+    // AbortError. Treat that as a clean cancellation rather than a crash.
+    if (err instanceof Error && err.name === 'AbortError') {
+      return null;
+    }
+    throw err;
+  }
 
   const body = text.trim();
   if (!body) {

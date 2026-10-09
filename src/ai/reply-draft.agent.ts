@@ -32,15 +32,69 @@ export interface ReplyDraft {
   body: string;
 }
 
+/** Statuses that are transient and warrant a retry. */
+const RETRYABLE_STATUSES = new Set([429, 503]);
+
+/**
+ * Calls `fn` and retries on 429 / 503 responses.
+ *
+ * The delay is taken from the `Retry-After` response header when present;
+ * otherwise exponential backoff (1 s, 2 s, 4 s, …) is used.
+ * After `maxAttempts` the last error is re-thrown.
+ */
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 4,
+): Promise<T> {
+  let attempt = 0;
+
+  while (true) {
+    attempt += 1;
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const isLastAttempt = attempt >= maxAttempts;
+
+      // Extract HTTP status and Retry-After from whatever the SDK throws.
+      const status: number | undefined =
+        (err as Record<string, unknown>)?.status as number | undefined ??
+        (err as Record<string, unknown>)?.statusCode as number | undefined;
+
+      const retryAfterHeader: string | undefined =
+        (err as Record<string, unknown>)?.responseHeaders?.['retry-after'] as
+          | string
+          | undefined ??
+        (err as Record<string, unknown>)?.headers?.['retry-after'] as
+          | string
+          | undefined;
+
+      if (isLastAttempt || !RETRYABLE_STATUSES.has(status as number)) {
+        throw err;
+      }
+
+      // Honour Retry-After (seconds) when provided; fall back to exponential backoff.
+      const retryAfterSec = retryAfterHeader ? parseFloat(retryAfterHeader) : NaN;
+      const delayMs = Number.isFinite(retryAfterSec) && retryAfterSec >= 0
+        ? retryAfterSec * 1000
+        : Math.pow(2, attempt - 1) * 1000; // 1 s, 2 s, 4 s, …
+
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+  }
+}
+
 export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
-  const { text } = await generateText({
-    model: openai(REPLY_DRAFT_MODEL),
-    system: REPLY_DRAFT_SYSTEM_PROMPT,
-    prompt: buildReplyDraftPrompt(input),
-    // Support replies should read consistently between agents.
-    temperature: 0.3,
-    maxOutputTokens: 500,
-  });
+  const { text } = await withRetry(() =>
+    generateText({
+      model: openai(REPLY_DRAFT_MODEL),
+      system: REPLY_DRAFT_SYSTEM_PROMPT,
+      prompt: buildReplyDraftPrompt(input),
+      // temperature is intentionally omitted: GPT-6 Astra (and future models)
+      // do not support custom temperature or top_p values, so omitting it here
+      // keeps the call forward-compatible with any model upgrade.
+      maxOutputTokens: 500,
+    }),
+  );
 
   const body = text.trim();
   if (!body) {

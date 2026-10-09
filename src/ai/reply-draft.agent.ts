@@ -9,7 +9,7 @@ import {
 /**
  * Reply draft helper.
  *
- * Runs OpenAI gpt-4o-mini through the Vercel AI SDK. Support agents get a
+ * Runs OpenAI gpt-6-astra through the Vercel AI SDK. Support agents get a
  * first draft of a reply to a customer message; a human always edits and sends
  * it, so nothing here is customer-facing on its own.
  *
@@ -20,7 +20,7 @@ import {
  */
 
 /** The model this helper runs. */
-export const REPLY_DRAFT_MODEL = 'gpt-4o-mini';
+export const REPLY_DRAFT_MODEL = 'gpt-6-astra';
 
 const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,

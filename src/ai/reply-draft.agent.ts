@@ -1,5 +1,4 @@
-import { createOpenAI } from '@ai-sdk/openai';
-import { generateText } from 'ai';
+import { AISDKError, generateText, LanguageModel } from 'ai';
 import {
   REPLY_DRAFT_SYSTEM_PROMPT,
   ReplyDraftInput,
@@ -9,7 +8,9 @@ import {
 /**
  * Reply draft helper.
  *
- * Runs OpenAI gpt-4o-mini through the Vercel AI SDK. Support agents get a
+ * Accepts a provider-agnostic AI SDK Core `LanguageModel` so the underlying
+ * provider (OpenAI, the APISynQ gateway, or any other) can be configured and
+ * injected by the caller rather than hard-wired here.  Support agents get a
  * first draft of a reply to a customer message; a human always edits and sends
  * it, so nothing here is customer-facing on its own.
  *
@@ -19,33 +20,40 @@ import {
  * api.openai.com directly.
  */
 
-/** The model this helper runs. */
-export const REPLY_DRAFT_MODEL = 'gpt-4o-mini';
-
-const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL,
-});
-
 export interface ReplyDraft {
   model: string;
   body: string;
 }
 
-export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
-  const { text } = await generateText({
-    model: openai(REPLY_DRAFT_MODEL),
-    system: REPLY_DRAFT_SYSTEM_PROMPT,
-    prompt: buildReplyDraftPrompt(input),
-    // Support replies should read consistently between agents.
-    temperature: 0.3,
-    maxOutputTokens: 500,
-  });
+export async function draftReply(
+  model: LanguageModel,
+  input: ReplyDraftInput,
+): Promise<ReplyDraft> {
+  try {
+    const { text } = await generateText({
+      model,
+      system: REPLY_DRAFT_SYSTEM_PROMPT,
+      prompt: buildReplyDraftPrompt(input),
+      // Support replies should read consistently between agents.
+      temperature: 0.3,
+      maxOutputTokens: 500,
+    });
 
-  const body = text.trim();
-  if (!body) {
-    throw new Error('Reply draft came back empty');
+    const body = text.trim();
+    if (!body) {
+      throw new Error('Reply draft came back empty');
+    }
+
+    return { model: model.modelId, body };
+  } catch (err) {
+    if (AISDKError.isInstance(err)) {
+      // Re-throw with a clear label so the NestJS layer can log / respond
+      // to SDK-level failures (invalid response data, abort, timeouts, …)
+      // distinctly from auth or network errors.
+      throw new Error(`AI SDK error during reply draft [${err.name}]: ${err.message}`, {
+        cause: err,
+      });
+    }
+    throw err;
   }
-
-  return { model: REPLY_DRAFT_MODEL, body };
 }

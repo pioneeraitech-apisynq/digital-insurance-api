@@ -22,10 +22,19 @@ import {
 /** The model this helper runs. */
 export const REPLY_DRAFT_MODEL = 'gpt-4o-mini';
 
-const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL,
-});
+/**
+ * Provider factory is kept behind a function so the environment variables are
+ * read at call-time rather than at module-load time, and so the provider can
+ * be swapped for any AI SDK Core-compatible provider without changing the
+ * `draftReply` logic below.
+ */
+function getModel() {
+  const openai = createOpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+    baseURL: process.env.OPENAI_BASE_URL,
+  });
+  return openai(REPLY_DRAFT_MODEL);
+}
 
 export interface ReplyDraft {
   model: string;
@@ -34,7 +43,7 @@ export interface ReplyDraft {
 
 export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
   const { text } = await generateText({
-    model: openai(REPLY_DRAFT_MODEL),
+    model: getModel(),
     system: REPLY_DRAFT_SYSTEM_PROMPT,
     prompt: buildReplyDraftPrompt(input),
     // Support replies should read consistently between agents.

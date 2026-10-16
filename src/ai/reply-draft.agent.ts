@@ -37,8 +37,6 @@ export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
     model: openai(REPLY_DRAFT_MODEL),
     system: REPLY_DRAFT_SYSTEM_PROMPT,
     prompt: buildReplyDraftPrompt(input),
-    // Support replies should read consistently between agents.
-    temperature: 0.3,
     maxOutputTokens: 500,
   });
 

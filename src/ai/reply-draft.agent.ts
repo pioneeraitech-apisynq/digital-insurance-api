@@ -39,7 +39,7 @@ export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
     prompt: buildReplyDraftPrompt(input),
     // Support replies should read consistently between agents.
     temperature: 0.3,
-    maxOutputTokens: 500,
+    maxTokens: 500,
   });
 
   const body = text.trim();

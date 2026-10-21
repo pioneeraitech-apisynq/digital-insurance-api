@@ -22,10 +22,17 @@ import {
 /** The model this helper runs. */
 export const REPLY_DRAFT_MODEL = 'gpt-4o-mini';
 
-const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-  baseURL: process.env.OPENAI_BASE_URL,
-});
+let _openai: ReturnType<typeof createOpenAI> | undefined;
+
+function getOpenAI(): ReturnType<typeof createOpenAI> {
+  if (!_openai) {
+    _openai = createOpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      baseURL: process.env.OPENAI_BASE_URL,
+    });
+  }
+  return _openai;
+}
 
 export interface ReplyDraft {
   model: string;
@@ -34,7 +41,7 @@ export interface ReplyDraft {
 
 export async function draftReply(input: ReplyDraftInput): Promise<ReplyDraft> {
   const { text } = await generateText({
-    model: openai(REPLY_DRAFT_MODEL),
+    model: getOpenAI()(REPLY_DRAFT_MODEL),
     system: REPLY_DRAFT_SYSTEM_PROMPT,
     prompt: buildReplyDraftPrompt(input),
     // Support replies should read consistently between agents.
